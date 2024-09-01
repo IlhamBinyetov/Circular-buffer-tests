@@ -52,7 +52,7 @@ namespace Circular_buffer
                 tail = (tail + 1) % buffer.Length;
                 head = tail;
             }
-        else
+            else
             {
                 Write(value);
             }

@@ -32,6 +32,7 @@ namespace MarkDown_Test
             Assert.Equal(expected, Markdown.Parse(markdown));
         }
 
+
         [Fact]
         public void Mixed_normal_italics_and_bold_text()
         {
@@ -74,16 +75,16 @@ namespace MarkDown_Test
             Assert.Equal(expected, Markdown.Parse(markdown));
         }
 
+
         [Fact]
         public void With_a_little_bit_of_everything()
         {
-            var markdown =
-                "# Header!\n" +
-                "* __Bold Item__\n" +
-                "* _Italic Item_";
+            var markdown = "# Header!\n __Bold Item__\n _Italic Item_";
             var expected = "<h1>Header!</h1><ul><li><strong>Bold Item</strong></li><li><em>Italic Item</em></li></ul>";
             Assert.Equal(expected, Markdown.Parse(markdown));
         }
+
+
 
         [Fact]
         public void With_markdown_symbols_in_the_header_text_that_should_not_be_interpreted()

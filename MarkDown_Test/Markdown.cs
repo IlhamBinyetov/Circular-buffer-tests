@@ -4,91 +4,53 @@ namespace MarkDown_Test
 {
     public static class Markdown
     {
-        private static string Wrap(string text, string tag) => "<" + tag + ">" + text + "</" + tag + ">";
+        private static string Wrap(string text, string tag) => $"<{tag}>{text}</{tag}>";
 
-        private static bool IsTag(string text, string tag) => text.StartsWith("<" + tag + ">");
+        private static bool IsTag(string text, string tag) => text.StartsWith($"<{tag}>");
+
 
         private static string Parse(string markdown, string delimiter, string tag)
         {
-            var pattern = delimiter + "(.+)" + delimiter;
-            var replacement = "<" + tag + ">$1</" + tag + ">";
+            var pattern = $"{delimiter}(.+?){delimiter}";
+            var replacement = $"<{tag}>$1</{tag}>";
             return Regex.Replace(markdown, pattern, replacement);
         }
+        private static string ParseBold(string markdown) => Parse(markdown, "__", "strong");
 
-        private static string Parse__(string markdown) => Parse(markdown, "__", "strong");
+        private static string ParseItalic(string markdown) => Parse(markdown, "_", "em");
 
-        private static string Parse_(string markdown) => Parse(markdown, "_", "em");
 
-        private static string ParseText(string markdown, bool list)
+        private static string ParseText(string markdown, bool inList)
         {
-            var parsedText = Parse_(Parse__((markdown)));
-
-            if (list)
-            {
-                return parsedText;
-            }
-            else
-            {
-                return Wrap(parsedText, "p");
-            }
+            var parsedText = ParseBold(ParseItalic(markdown));
+            return inList ? parsedText : Wrap(parsedText, "p");
         }
 
-        private static string ParseHeader(string markdown, bool list, out bool inListAfter)
+        private static string ParseHeader(string markdown, bool inList, out bool inListAfter)
         {
-            var count = 0;
-
-            for (int i = 0; i < markdown.Length; i++)
+            int headerLevel = GetHeaderLevel(markdown);
+            if (headerLevel > 0)
             {
-                if (markdown[i] == '#')
-                {
-                    count += 1;
-                }
-                else
-                {
-                    break;
-                }
+                inListAfter = inList;
+                string headerContent = markdown.Substring(headerLevel).Trim();
+                return inList
+                    ? $"</ul><h{headerLevel}>{headerContent}</h{headerLevel}>"
+                    : $"<h{headerLevel}>{headerContent}</h{headerLevel}>";
             }
-
-            if (count == 0)
-            {
-                inListAfter = list;
-                return null;
-            }
-
-            var headerTag = "h" + count;
-            var headerHtml = Wrap(markdown.Substring(count + 1), headerTag);
-
-            if (list)
-            {
-                inListAfter = false;
-                return "</ul>" + headerHtml;
-            }
-            else
-            {
-                inListAfter = false;
-                return headerHtml;
-            }
+            inListAfter = inList;
+            return null;
         }
 
-        private static string ParseLineItem(string markdown, bool list, out bool inListAfter)
+        private static string ParseLineItem(string markdown, bool inList, out bool inListAfter)
         {
-            if (markdown.StartsWith("*"))
+            if (markdown.TrimStart().StartsWith("*"))
             {
-                var innerHtml = Wrap(ParseText(markdown.Substring(2), true), "li");
-
-                if (list)
-                {
-                    inListAfter = true;
-                    return innerHtml;
-                }
-                else
-                {
-                    inListAfter = true;
-                    return "<ul>" + innerHtml;
-                }
+                var itemContent = ParseText(markdown.Substring(1).Trim(), true);
+                var result = Wrap(itemContent, "li");
+                inListAfter = true;
+                return inList ? result : $"<ul>{result}";
             }
-
-            inListAfter = list;
+            inListAfter = inList;
             return null;
         }
 
@@ -106,48 +68,41 @@ namespace MarkDown_Test
             }
         }
 
-        private static string ParseLine(string markdown, bool list, out bool inListAfter)
+        private static string ParseLine(string markdown, bool list, out bool inListAfter) 
         {
-            var result = ParseHeader(markdown, list, out inListAfter);
+            string result = "";
+            result = ParseHeader(markdown, list, out inListAfter);
+            if (result != null) return result;
 
-            if (result == null)
-            {
-                result = ParseLineItem(markdown, list, out inListAfter);
-            }
+            result = ParseLineItem(markdown, list, out inListAfter);
+            if (result != null) return result;
 
-            if (result == null)
-            {
-                result = ParseParagraph(markdown, list, out inListAfter);
-            }
+            result = ParseParagraph(markdown, list, out inListAfter);
+            if (result != null) return result;
 
-            if (result == null)
-            {
-                throw new ArgumentException("Invalid markdown");
-            }
+            throw new ArgumentException("Invalid markdown");
 
-            return result;
         }
-
         public static string Parse(string markdown)
         {
             var lines = markdown.Split('\n');
             var result = "";
-            var list = false;
+            var inList = false;
 
-            for (int i = 0; i < lines.Length; i++)
+            foreach (var line in lines)
             {
-                var lineResult = ParseLine(lines[i], list, out list);
+                var lineResult = ParseLine(line, inList, out inList);
                 result += lineResult;
             }
 
-            if (list)
-            {
-                return result + "</ul>";
-            }
-            else
-            {
-                return result;
-            }
+            if (inList) result += "</ul>";
+            return result;
+        }
+        private static int GetHeaderLevel(string markdown)
+        {
+            int level = 0;
+            while (level < markdown.Length && markdown[level] == '#') level++;
+            return level;
         }
     }
 }
